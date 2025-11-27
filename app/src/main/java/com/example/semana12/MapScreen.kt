@@ -11,9 +11,8 @@ import com.google.maps.android.compose.rememberMarkerState
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.maps.android.compose.Marker
-import androidx.compose.runtime.rememberCoroutineScope // ¡NUEVA IMPORTACIÓN!
-import kotlinx.coroutines.launch // ¡NUEVA IMPORTACIÓN!
-// ... otras importaciones
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
