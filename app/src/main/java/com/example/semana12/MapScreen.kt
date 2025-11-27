@@ -66,36 +66,41 @@ fun bitmapDescriptorFromVector(
 @Composable
 fun MapScreen() {
     val context = LocalContext.current
-    val density = LocalDensity.current // Obtener la densidad de la pantalla
+    val density = LocalDensity.current
 
-    // Define un tamaño razonable para tu ícono en DIP (Density-Independent Pixels)
+    // Define un tamaño razonable para tu ícono en DIP
     val markerSizeDp = 40.dp
-
-    // Convertir DIPs a píxeles enteros (el formato que necesita la función de Bitmap)
     val markerWidthPx = with(density) { markerSizeDp.roundToPx() }
     val markerHeightPx = with(density) { markerSizeDp.roundToPx() }
 
     var customIcon by remember { mutableStateOf<BitmapDescriptor?>(null) }
 
+    // Lista de ubicaciones para los marcadores
+    val locations = listOf(
+        LatLng(-16.433415, -71.5442652), // JLByR
+        LatLng(-16.4205151, -71.4945209), // Paucarpata
+        LatLng(-16.3524187, -71.5675994) // Zamacola
+    )
+
+    // Usamos la primera ubicación para centrar la cámara
+    val initialLocation = locations.first()
+
+    val cameraPositionState = rememberCameraPositionState {
+        // Centramos la cámara en la primera ubicación de la lista
+        position = com.google.android.gms.maps.model.CameraPosition.fromLatLngZoom(initialLocation, 11f)
+    }
+
     LaunchedEffect(Unit) {
         MapsInitializer.initialize(context, Renderer.LATEST, object : OnMapsSdkInitializedCallback {
             override fun onMapsSdkInitialized(renderer: MapsInitializer.Renderer) {
-
-                // 3. Llamar a la función con el ancho y alto deseado
                 customIcon = bitmapDescriptorFromVector(
                     context,
                     R.drawable.iconmaps,
-                    markerWidthPx, // <-- Pasar el ancho
-                    markerHeightPx // <-- Pasar el alto
+                    markerWidthPx,
+                    markerHeightPx
                 )
             }
         })
-    }
-
-
-    val ArequipaLocation = LatLng(-16.4040102, -71.559611)
-    val cameraPositionState = rememberCameraPositionState {
-        position = com.google.android.gms.maps.model.CameraPosition.fromLatLngZoom(ArequipaLocation, 12f)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -104,11 +109,23 @@ fun MapScreen() {
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState
             ) {
-                Marker(
-                    state = rememberMarkerState(position = ArequipaLocation),
-                    title = "Arequipa, Perú",
-                    icon = customIcon
-                )
+
+                // 🎯 AQUÍ ES DONDE DEBES PEGAR EL CÓDIGO
+                locations.forEachIndexed { index, location ->
+                    Marker(
+                        state = rememberMarkerState(position = location),
+                        title = "Ubicación ${index + 1}", // Título dinámico
+                        snippet = when(index) { // Snippet dinámico
+                            0 -> "José Luis Bustamante y Rivero"
+                            1 -> "Paucarpata"
+                            2 -> "Zamacola"
+                            else -> "Punto de interés"
+                        },
+                        icon = customIcon
+                    )
+                }
+                // 🎯 FIN DEL CÓDIGO A PEGAR
+
             }
         }
     }
