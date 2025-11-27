@@ -9,11 +9,14 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.maps.android.compose.Marker
+import androidx.compose.runtime.rememberCoroutineScope // ¡NUEVA IMPORTACIÓN!
+import kotlinx.coroutines.launch // ¡NUEVA IMPORTACIÓN!
+// ... otras importaciones
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
-import com.google.android.gms.maps.MapsInitializer.Renderer
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import androidx.core.content.ContextCompat
@@ -47,7 +50,7 @@ fun bitmapDescriptorFromVector(
     val drawable = ContextCompat.getDrawable(context, vectorResId) ?: return null
 
     // 2. Establecer límites del Drawable al tamaño deseado
-    drawable.setBounds(0, 0, width, height) // <-- Usamos los nuevos parámetros
+    drawable.setBounds(0, 0, width, height)
 
     // 3. Crear un Bitmap del tamaño deseado
     val bitmap = Bitmap.createBitmap(
@@ -68,37 +71,47 @@ fun MapScreen() {
     val context = LocalContext.current
     val density = LocalDensity.current
 
-    // Define un tamaño razonable para tu ícono en DIP
     val markerSizeDp = 40.dp
     val markerWidthPx = with(density) { markerSizeDp.roundToPx() }
     val markerHeightPx = with(density) { markerSizeDp.roundToPx() }
 
     var customIcon by remember { mutableStateOf<BitmapDescriptor?>(null) }
 
-    // Lista de ubicaciones para los marcadores
     val locations = listOf(
         LatLng(-16.433415, -71.5442652), // JLByR
         LatLng(-16.4205151, -71.4945209), // Paucarpata
         LatLng(-16.3524187, -71.5675994) // Zamacola
     )
 
-    // Usamos la primera ubicación para centrar la cámara
     val initialLocation = locations.first()
 
     val cameraPositionState = rememberCameraPositionState {
-        // Centramos la cámara en la primera ubicación de la lista
+        // Posición inicial (antes de la animación)
         position = com.google.android.gms.maps.model.CameraPosition.fromLatLngZoom(initialLocation, 11f)
     }
+    val coroutineScope = rememberCoroutineScope()
+
 
     LaunchedEffect(Unit) {
-        MapsInitializer.initialize(context, Renderer.LATEST, object : OnMapsSdkInitializedCallback {
+        MapsInitializer.initialize(context, MapsInitializer.Renderer.LATEST, object : OnMapsSdkInitializedCallback {
             override fun onMapsSdkInitialized(renderer: MapsInitializer.Renderer) {
+
+                // 1. Inicializar el ícono
                 customIcon = bitmapDescriptorFromVector(
                     context,
                     R.drawable.iconmaps,
                     markerWidthPx,
                     markerHeightPx
                 )
+
+                // 2. Animar la cámara, usando el ámbito de corrutinas
+                coroutineScope.launch {
+                    val yuraLocation = LatLng(-16.2520984, -71.6836503)
+                    cameraPositionState.animate(
+                        update = CameraUpdateFactory.newLatLngZoom(yuraLocation, 12f),
+                        durationMs = 3000
+                    )
+                }
             }
         })
     }
@@ -110,12 +123,12 @@ fun MapScreen() {
                 cameraPositionState = cameraPositionState
             ) {
 
-                // 🎯 AQUÍ ES DONDE DEBES PEGAR EL CÓDIGO
+                // Marcadores
                 locations.forEachIndexed { index, location ->
                     Marker(
                         state = rememberMarkerState(position = location),
-                        title = "Ubicación ${index + 1}", // Título dinámico
-                        snippet = when(index) { // Snippet dinámico
+                        title = "Ubicación ${index + 1}",
+                        snippet = when(index) {
                             0 -> "José Luis Bustamante y Rivero"
                             1 -> "Paucarpata"
                             2 -> "Zamacola"
@@ -124,7 +137,6 @@ fun MapScreen() {
                         icon = customIcon
                     )
                 }
-                // 🎯 FIN DEL CÓDIGO A PEGAR
 
             }
         }
