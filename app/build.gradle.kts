@@ -46,10 +46,15 @@ secrets {
 }
 
 dependencies {
-    val mapsComposeVersion = "4.4.1"
-    implementation("com.google.maps.android:maps-compose:${mapsComposeVersion}")
-    implementation("com.google.maps.android:maps-compose-utils:${mapsComposeVersion}")
-    implementation("com.google.maps.android:maps-compose-widgets:${mapsComposeVersion}")
+    // ELIMINAR O COMENTAR:
+    // val mapsComposeVersion = "4.4.1"
+    // implementation("com.google.maps.android:maps-compose:${mapsComposeVersion}")
+    // implementation("com.google.maps.android:maps-compose-utils:${mapsComposeVersion}")
+    // implementation("com.google.maps.android:maps-compose-widgets:${mapsComposeVersion}")
+
+    // USAR SOLO ESTA LÍNEA para el componente principal de Maps Compose:
+    implementation("com.google.maps.android:maps-compose:2.15.0")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -65,7 +70,8 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+    // SDK base de Google Play Services:
     implementation("com.google.android.gms:play-services-maps:18.2.0")
-
-
 }

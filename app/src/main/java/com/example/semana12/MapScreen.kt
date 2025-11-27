@@ -23,17 +23,28 @@ import com.google.android.gms.maps.OnMapsSdkInitializedCallback
 import com.google.android.gms.maps.MapsInitializer
 import androidx.compose.ui.graphics.Color
 import com.google.maps.android.compose.Polygon
-import com.google.maps.android.compose.Polyline // Importación para Polilínea
+import com.google.maps.android.compose.Polyline
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
+import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapType
+import com.google.maps.android.compose.MapUiSettings
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material3.Icon
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.padding
 import com.google.android.gms.maps.model.Dash
 import com.google.android.gms.maps.model.Gap
-import com.google.android.gms.maps.model.PatternItem
+import com.google.android.gms.location.LocationServices
+import android.Manifest
+import android.content.pm.PackageManager
+import android.location.Location
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.gms.location.FusedLocationProviderClient
 
-
-/**
- * Función auxiliar para convertir un recurso Drawable (PNG/Vector) en un BitmapDescriptor.
- */
+// Convierte un vector en un icono bitmap para los marcadores
 fun bitmapDescriptorFromVector(
     context: android.content.Context,
     @DrawableRes vectorResId: Int,
@@ -48,39 +59,75 @@ fun bitmapDescriptorFromVector(
     return BitmapDescriptorFactory.fromBitmap(bitmap)
 }
 
+// Obtiene la última ubicación disponible del usuario
+fun requestCurrentLocation(
+    context: android.content.Context,
+    fusedLocationClient: FusedLocationProviderClient,
+    onLocationFetched: (LatLng) -> Unit,
+) {
+    if (ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED
+    ) return
+
+    fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+        location?.let {
+            onLocationFetched(LatLng(it.latitude, it.longitude))
+        }
+    }
+}
+
 @Composable
 fun MapScreen() {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val coroutineScope = rememberCoroutineScope()
 
+    val fusedLocationClient = remember {
+        LocationServices.getFusedLocationProviderClient(context)
+    }
+
+    var userLocation by remember { mutableStateOf<LatLng?>(null) }
+
+    // Tamaño del icono personalizado
     val markerSizeDp = 40.dp
     val markerWidthPx = with(density) { markerSizeDp.roundToPx() }
     val markerHeightPx = with(density) { markerSizeDp.roundToPx() }
-
     var customIcon by remember { mutableStateOf<BitmapDescriptor?>(null) }
-    val coroutineScope = rememberCoroutineScope()
 
-    // --- 1. Datos de Marcadores ---
+    val initialCameraPosition = LatLng(-16.3989, -71.5365)
+    val cameraPositionState = rememberCameraPositionState {
+        position = com.google.android.gms.maps.model.CameraPosition.fromLatLngZoom(initialCameraPosition, 15f)
+    }
+
+    // Solicitud de permisos de ubicación
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            requestCurrentLocation(context, fusedLocationClient) {
+                userLocation = it
+            }
+        }
+    }
+
+    // Tipo de mapa
+    var mapType by remember { mutableStateOf(MapType.NORMAL) }
+    val mapProperties = MapProperties(mapType = mapType)
+
+    // Habilita el botón de "mi ubicación"
+    val mapUiSettings by remember {
+        mutableStateOf(MapUiSettings(myLocationButtonEnabled = true))
+    }
+
+    // Datos estáticos
     val locations = listOf(
-        LatLng(-16.433415, -71.5442652), // JLByR
-        LatLng(-16.4205151, -71.4945209), // Paucarpata
-        LatLng(-16.3524187, -71.5675994) // Zamacola
+        LatLng(-16.433415, -71.5442652),
+        LatLng(-16.4205151, -71.4945209),
+        LatLng(-16.3524187, -71.5675994)
     )
-    val initialLocation = locations.first()
 
-    // --- 2. Datos de Polígonos ---
-    val mallAventuraPolygon = listOf(
-        LatLng(-16.432292, -71.509145),
-        LatLng(-16.432757, -71.509626),
-        LatLng(-16.433013, -71.509310),
-        LatLng(-16.432566, -71.508853)
-    )
-    val parqueLambramaniPolygon = listOf(
-        LatLng(-16.422704, -71.530830),
-        LatLng(-16.422920, -71.531340),
-        LatLng(-16.423264, -71.531110),
-        LatLng(-16.423050, -71.530600)
-    )
     val plazaDeArmasPolygon = listOf(
         LatLng(-16.398866, -71.536961),
         LatLng(-16.398744, -71.536529),
@@ -88,62 +135,58 @@ fun MapScreen() {
         LatLng(-16.399299, -71.536721)
     )
 
-    // --- 3. Datos de Polilíneas ---
     val rutaPrincipal = listOf(
-        LatLng(-16.3980, -71.5369), // Plaza de Armas
-        LatLng(-16.3930, -71.5390), // Puente Grau
-        LatLng(-16.3850, -71.5450), // Av. Ejército
-        LatLng(-16.3680, -71.5500)  // Cercano al Aeropuerto
+        LatLng(-16.3980, -71.5369),
+        LatLng(-16.3930, -71.5390),
+        LatLng(-16.3850, -71.5450),
+        LatLng(-16.3680, -71.5500)
     )
+
     val rutaAlterna = listOf(
-        LatLng(-16.3980, -71.5369), // Plaza de Armas
-        LatLng(-16.3970, -71.5450), // Av. La Marina
-        LatLng(-16.3890, -71.5510)  // Tramo de línea simulada
+        LatLng(-16.3980, -71.5369),
+        LatLng(-16.3970, -71.5450),
+        LatLng(-16.3890, -71.5510)
     )
 
-    // Estado de la Cámara
-    val cameraPositionState = rememberCameraPositionState {
-        // Zoom inicial bajo para que la animación sea visible
-        position = com.google.android.gms.maps.model.CameraPosition.fromLatLngZoom(initialLocation, 9f)
-    }
-
-    // Inicialización del ícono y Animación de la Cámara (ejecutado de forma segura)
+    // Inicializa Google Maps y carga el icono personalizado
     LaunchedEffect(Unit) {
-        MapsInitializer.initialize(context, MapsInitializer.Renderer.LATEST, object : OnMapsSdkInitializedCallback {
-            override fun onMapsSdkInitialized(renderer: MapsInitializer.Renderer) {
-                // 1. Inicializa el ícono
-                customIcon = bitmapDescriptorFromVector(
-                    context,
-                    R.drawable.iconmaps,
-                    markerWidthPx,
-                    markerHeightPx
-                )
-
-                // 2. Animar la cámara al área de los Polígonos
-                coroutineScope.launch {
-                    val plazaDeArmasCenter = LatLng(-16.3989, -71.5365)
-                    cameraPositionState.animate(
-                        update = CameraUpdateFactory.newLatLngZoom(plazaDeArmasCenter, 15f),
-                        durationMs = 3000
-                    )
-                }
-            }
-        })
+        MapsInitializer.initialize(context, null) {
+            customIcon = bitmapDescriptorFromVector(
+                context, R.drawable.iconmaps, markerWidthPx, markerHeightPx
+            )
+            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
     }
 
+    // Centra la cámara al obtener la ubicación del usuario
+    LaunchedEffect(userLocation) {
+        userLocation?.let { location ->
+            coroutineScope.launch {
+                cameraPositionState.animate(
+                    update = CameraUpdateFactory.newLatLngZoom(location, 15f),
+                    durationMs = 2000
+                )
+            }
+        }
+    }
+
+    // Mapa + FAB de cambio de tipo
     Box(modifier = Modifier.fillMaxSize()) {
+
         if (customIcon != null) {
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
-                cameraPositionState = cameraPositionState
+                cameraPositionState = cameraPositionState,
+                properties = mapProperties,
+                uiSettings = mapUiSettings
             ) {
 
-                // --- A. Marcadores ---
+                // Marcadores estáticos
                 locations.forEachIndexed { index, location ->
                     Marker(
                         state = rememberMarkerState(position = location),
                         title = "Ubicación ${index + 1}",
-                        snippet = when(index) {
+                        snippet = when (index) {
                             0 -> "José Luis Bustamante y Rivero"
                             1 -> "Paucarpata"
                             2 -> "Zamacola"
@@ -153,48 +196,45 @@ fun MapScreen() {
                     )
                 }
 
-                // --- B. Polígonos ---
+                // Marcador manual de ubicación del usuario
+                userLocation?.let {
+                    Marker(
+                        state = rememberMarkerState(position = it),
+                        title = "Mi Ubicación Actual",
+                        snippet = "Tú estás aquí",
+                        icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+                    )
+                }
+
+                // Polígonos
                 Polygon(
                     points = plazaDeArmasPolygon,
                     strokeColor = Color.Red,
-                    fillColor = Color(0x770000FF), // Azul semitransparente
-                    strokeWidth = 5f
-                )
-                Polygon(
-                    points = parqueLambramaniPolygon,
-                    strokeColor = Color.Red,
-                    fillColor = Color(0x770000FF),
-                    strokeWidth = 5f
-                )
-                Polygon(
-                    points = mallAventuraPolygon,
-                    strokeColor = Color.Red,
                     fillColor = Color(0x770000FF),
                     strokeWidth = 5f
                 )
 
-                // Polilíneas
-
-                // 1. Ruta Principal (Sólida)
-                Polyline(
-                    points = rutaPrincipal,
-                    color = Color(0xFF006400), // Verde oscuro
-                    width = 15f,
-                    zIndex = 1f
-                )
-
-                // 2. Ruta Alterna (Patrón de Guiones)
+                // Rutas
+                Polyline(points = rutaPrincipal, color = Color(0xFF006400), width = 15f)
                 Polyline(
                     points = rutaAlterna,
                     color = Color.Blue,
                     width = 10f,
-                    pattern = listOf(
-                        Dash(20f),
-                        Gap(10f)
-                    )
+                    pattern = listOf(Dash(20f), Gap(10f))
                 )
-
             }
+        }
+
+        // Cambiar tipo de mapa
+        FloatingActionButton(
+            onClick = {
+                mapType = if (mapType == MapType.NORMAL) MapType.HYBRID else MapType.NORMAL
+            },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+        ) {
+            Icon(Icons.Filled.Map, contentDescription = "Cambiar Tipo de Mapa")
         }
     }
 }
